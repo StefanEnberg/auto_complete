@@ -105,13 +105,50 @@ module AutoCompleteMacrosHelper
   # auto_complete_for to respond the AJAX calls,
   # 
   def text_field_with_auto_complete(object, method, tag_options = {}, completion_options = {})
+    tag_id = tag_id_for(object, method, tag_options[:object])
     (completion_options[:skip_style] ? "" : auto_complete_stylesheet) +
     text_field(object, method, tag_options) +
-    content_tag("div", "", :id => "#{object}_#{method}_auto_complete", :class => "auto_complete") +
-    auto_complete_field("#{object}_#{method}", { :url => { :action => "auto_complete_for_#{object}_#{method}" } }.update(completion_options))
+    content_tag("div", "", :id => "#{tag_id}_auto_complete", :class => "auto_complete") +
+    auto_complete_field("#{tag_id}", { :url => { :action => "auto_complete_for_#{tag_id}" } }.update(completion_options))
   end
 
   private
+    def tag_id_for(object, method, object_instance)
+      object_name, method_name = object.to_s.dup, method.to_s.dup    
+      if object_name.sub!(/\[\]$/,"")
+        if object_instance.respond_to?(:to_param)
+          auto_index = object_instance.to_param
+        else
+          raise ArgumentError, "object[] naming but object param and @object var don't exist or don't respond to to_param: #{object.inspect}"
+        end
+      end
+        
+      sanitized_object_name = sanitize_object_name(object_name)
+      sanitized_method_name = sanitize_method_name(method_name)
+      
+      if auto_index
+        tag_id_with_index(sanitized_object_name, sanitized_method_name, auto_index)
+      else
+        tag_id(sanitized_object_name, sanitized_method_name)
+      end
+    end
+  
+    def tag_id(object_name, method_name)
+      "#{object_name}_#{method_name}"
+    end
+
+    def tag_id_with_index(object_name, method_name, index)
+      "#{object_name}_#{index}_#{method_name}"
+    end
+
+    def sanitize_object_name(object_name)
+      object_name.gsub(/[^-a-zA-Z0-9:.]/, "_").sub(/_$/, "")
+    end
+
+    def sanitize_method_name(method_name)
+      method_name.sub(/\?$/,"")
+    end
+  
     def auto_complete_stylesheet
       content_tag('style', <<-EOT, :type => Mime::CSS)
         div.auto_complete {
@@ -141,3 +178,12 @@ module AutoCompleteMacrosHelper
     end
 
 end   
+module ActionView
+  module Helpers
+    class FormBuilder
+      def text_field_with_auto_complete(method, tag_options = {}, completion_options = {})
+        @template.text_field_with_auto_complete(@object_name, method, objectify_options(tag_options), completion_options)
+      end
+	  end
+	end
+end
