@@ -142,7 +142,7 @@ module AutoCompleteMacrosHelper
     end
 
     def sanitize_object_name(object_name)
-      object_name.gsub(/[^-a-zA-Z0-9:.]/, "_").sub(/_$/, "")
+      object_name.gsub(/\]\[|[^-a-zA-Z0-9:.]/, "_").sub(/_$/, "")
     end
 
     def sanitize_method_name(method_name)
